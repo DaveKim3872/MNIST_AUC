@@ -1,14 +1,18 @@
 import torch
+import numpy as np
 from torch.autograd import Variable
 from torchvision import transforms
+from sklearn.metrics import roc_auc_score
 from torch.utils.data import Dataset, DataLoader
 from PIL import Image
-root="D:/tri_class/10_models/model00/"
-test_root = "D:/tri_class/class1/"
+
+root = "D:/tri_class/class3/"
+
 
 # -----------------ready the dataset--------------------------
 def default_loader(path):
     return Image.open(path).convert('RGB')
+
 class MyDataset(Dataset):
     def __init__(self, txt, transform=None, target_transform=None, loader=default_loader):
         fh = open(txt, 'r')
@@ -20,7 +24,7 @@ class MyDataset(Dataset):
             print(words)
             print(words[0])
             print(words[1])
-            imgs.append((words[0],int(words[1][7])))
+            imgs.append((words[0], int(words[1][7])))
         self.imgs = imgs
         self.transform = transform
         self.target_transform = target_transform
@@ -31,18 +35,19 @@ class MyDataset(Dataset):
         img = self.loader(fn)
         if self.transform is not None:
             img = self.transform(img)
-        return img,label
+        return img, label
 
     def __len__(self):
         return len(self.imgs)
 
-train_data=MyDataset(txt=root+'train.txt', transform=transforms.ToTensor())
-test_data=MyDataset(txt=test_root+'test0-mini.txt', transform=transforms.ToTensor())
-train_loader = DataLoader(dataset=train_data, batch_size=64, shuffle=True)
+
+# train_data=MyDataset(txt=root+'train.txt', transform=transforms.ToTensor())
+test_data = MyDataset(txt=root + '023-shuf.txt', transform=transforms.ToTensor())
+# train_loader = DataLoader(dataset=train_data, batch_size=64, shuffle=True)
 test_loader = DataLoader(dataset=test_data, batch_size=64)
 
 
-#-----------------create the Net and training------------------------
+# -----------------create the Net and training------------------------
 
 class Net(torch.nn.Module):
     def __init__(self):
@@ -82,37 +87,37 @@ print(model)
 optimizer = torch.optim.Adam(model.parameters())
 loss_func = torch.nn.CrossEntropyLoss()
 
-for epoch in range(3):
-    print('epoch {}'.format(epoch + 1))
-    # training-----------------------------
-    train_loss = 0.
-    train_acc = 0.
-    for batch_x, batch_y in train_loader:
-        batch_x, batch_y = Variable(batch_x), Variable(batch_y)
-        out = model(batch_x)
-        loss = loss_func(out, batch_y)
-        train_loss += loss.item()
-        pred = torch.max(out, 1)[1]
-        train_correct = (pred == batch_y).sum()
-        train_acc += train_correct.item()
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-    torch.save(model.state_dict(), root + 'model_param.pkl')
-    print('Train Loss: {:.6f}, Acc: {:.6f}'.format(train_loss / (len(
-        train_data)), train_acc / (len(train_data))))
+model.load_state_dict(torch.load('D:/tri_class/models/Tri2_param.pkl'))
+# print('epoch {}'.format(epoch + 1))
+# # training-----------------------------
+# train_loss = 0.
+# train_acc = 0.
+# for batch_x, batch_y in train_loader:
+#     batch_x, batch_y = Variable(batch_x), Variable(batch_y)
+#     out = model(batch_x)
+#     loss = loss_func(out, batch_y)
+#     train_loss += loss.item()
+#     pred = torch.max(out, 1)[1]
+#     train_correct = (pred == batch_y).sum()
+#     train_acc += train_correct.item()
+#     optimizer.zero_grad()
+#     loss.backward()
+#     optimizer.step()
+# print('Train Loss: {:.6f}, Acc: {:.6f}'.format(train_loss / (len(
+#     train_data)), train_acc / (len(train_data))))
 
-    # evaluation--------------------------------
-    model.eval()
-    eval_loss = 0.
-    eval_acc = 0.
-    for batch_x, batch_y in test_loader:
-        batch_x, batch_y = Variable(batch_x, volatile=True), Variable(batch_y, volatile=True)
-        out = model(batch_x)
-        loss = loss_func(out, batch_y)
-        eval_loss += loss.item()
-        pred = torch.max(out, 1)[1]
-        num_correct = (pred == batch_y).sum()
-        eval_acc += num_correct.item()
-    print('Test Loss: {:.6f}, Acc: {:.6f}'.format(eval_loss / (len(
-        test_data)), eval_acc / (len(test_data))))
+# evaluation--------------------------------
+model.eval()
+eval_loss = 0.
+eval_acc = 0.
+for batch_x, batch_y in test_loader:
+    batch_x, batch_y = Variable(batch_x, volatile=True), Variable(batch_y, volatile=True)
+    out = model(batch_x)
+    loss = loss_func(out, batch_y)
+    eval_loss += loss.item()
+    pred = torch.max(out, 1)[1]
+    num_correct = (pred == batch_y).sum()
+    eval_acc += num_correct.item()
+
+print('Test Loss: {:.6f}, Acc: {:.6f}'.format(eval_loss / (len(
+    test_data)), eval_acc / (len(test_data))))
